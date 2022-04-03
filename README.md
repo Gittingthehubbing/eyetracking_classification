@@ -18,9 +18,6 @@ Expects data in the following folder structure:
 ```
 eyetracker_data
  ┣ data
- ┃ ┣ .ipynb_checkpoints
- ┃ ┃ ┣ N1-checkpoint.txt
- ┃ ┃ ┗ N999-checkpoint.txt
  ┃ ┣ N1.txt
  ┃ ┣ N10.txt
  ┃ ┣ N100.txt
@@ -28,4 +25,14 @@ eyetracker_data
  ┃ ┗ N999.txt
  ┣ Outcome.txt
  ┗ sub_num.txt
+```
+
+To run:
+Modify config.py accordingly then:
+```
+  python main.py
+```
+or
+```
+  python config.py
 ```
