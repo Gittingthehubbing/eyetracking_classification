@@ -210,7 +210,10 @@ def main(cfg:dict):
                 last_activation=cfg["last_activation"],max_seq_length=max_seq_length_found
             ).to(device=device_torch)
         elif cfg["model_to_use"] == "LSTM":
-            net = models.LSTM_Model(x0,y0,cfg["hidden_dim_lstm"],cfg["n_layers"],zero_initial_h_c=True).to(device_torch)
+            net = models.LSTM_Model(
+                x0,y0,cfg["hidden_dim_lstm"],cfg["n_layers_LSTM"],
+                zero_initial_h_c=True,last_activation=cfg["last_activation"]
+            ).to(device_torch)
         else:
             raise NotImplementedError
 
@@ -227,7 +230,7 @@ def main(cfg:dict):
                 opti, milestones=cfg["multistep_milestones"], gamma=cfg["gamma_multistep"], verbose=False)
         elif cfg["lr_scheduling"] == "anneal":
             scheduler = t.optim.lr_scheduler.CosineAnnealingLR(
-                opti, 150, eta_min=cfg["min_lr_anneal"], last_epoch=-1, verbose=False)
+                opti, 250, eta_min=cfg["min_lr_anneal"], last_epoch=-1, verbose=False)
         elif cfg["lr_scheduling"] == "ExponentialLR":
             scheduler = t.optim.lr_scheduler.ExponentialLR(opti,cfg["lr_sched_exp_fac"])
         else:
