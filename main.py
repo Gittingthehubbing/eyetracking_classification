@@ -20,44 +20,6 @@ class DSet(torch_dset):
     def __len__(self):
         return len(self.x_list)
 
-# plot_folder_name = "plots"
-# data_save_folder_name = "saved_results"
-# plot_some_examples = True
-# plot_histograms = True
-
-# max_seq_length = 800#50 # 300 good for BERT # max is 1582 min is 23
-# every_nth_entry = 10 #28 works well for BERT with max 50 seq. 40 # up to 40 seems to work for BERT
-# use_padding = True
-# normalise_x_y_within_sample = False
-# one_hot_y = False
-# batch_size = 64 if use_padding else 1
-# num_epochs = 125
-# use_reduced_set = False # reduces number of samples used
-
-# model_to_use = ["BERT","LSTM"][1]
-
-# last_activation = "Softmax" if one_hot_y else "Sigmoid"
-
-# n_layers = 2
-# head_multiplication_factor = 64
-# num_attention_heads = 8
-
-# hidden_dim_lstm =256
-# lr = 2.5e-5
-# lr_LSTM = 1.83298071e-05
-# lr_scheduling = ["const","ExponentialLR","multistep","anneal"][1]
-# lr_sched_exp_fac = 0.99
-# multistep_milestones=[25,50,75,100]
-# gamma_multistep = 0.5
-# min_lr_anneal = 1e-6
-
-
-# redo_samples = True
-# loop_var_name = "max_seq_length"
-
-
-# loop_vals = np.arange(5,800,25)# [2**x for x in range(1,12,1)]
-
 def main(cfg:dict):
     """Loads in data, trains and evaluates model according to settings in cfg dict."""
         
@@ -140,20 +102,21 @@ def main(cfg:dict):
             max_seq_length_found = np.max(sequence_lenghts)
             print(f"Max sequence length used is: {max_seq_length_found}")
 
-            # bins = scipy.stats.cumfreq(sequence_lenghts,numbins=100)
-            # plt.plot(bins.cumcount/np.max(bins.cumcount))
-            plt.hist(sequence_lenghts,bins=100)
-            plt.xlabel("Sequence Lengths")
-            plt.savefig("Seq_lengths.png",dpi=200)
-            x_scaler = StandardScaler()
-            x_scaler.fit(x_arrs_for_scaling)
-            # seq_red = [x for x in sequence_lenghts if x <= 600]
+            if cfg["plot_histograms"]:
+                plt.hist(sequence_lenghts,bins=100)
+                plt.xlabel("Sequence Lengths")
+                plt.savefig("Seq_lengths.png",dpi=200)
+                plt.close("all")
+
             if cfg["plot_some_examples"]:
                 ml_utils.plot_sample_data(data_list, plot_path, cfg["one_hot_y"])
 
             if cfg["plot_histograms"]:
                 ml_utils.plot_histograms(x_arrs_full, col_names, plot_path, target_arr)
 
+            x_scaler = StandardScaler()
+            x_scaler.fit(x_arrs_for_scaling)
+            
             x_list, y_list = [], []
             for k in data_list:
                 x_val = t.tensor(x_scaler.transform(k[0]),dtype=t.float32)                
@@ -206,7 +169,7 @@ def main(cfg:dict):
 
         if cfg["model_to_use"] == "BERT":
             net = models.BERT_Model(
-                x0,y0,cfg["num_attention_heads"],hidden_dim_bert,cfg["n_layers"],
+                x0,y0,cfg["num_attention_heads"],hidden_dim_bert,cfg["n_layers_BERT"],
                 last_activation=cfg["last_activation"],max_seq_length=max_seq_length_found
             ).to(device=device_torch)
         elif cfg["model_to_use"] == "LSTM":
@@ -215,10 +178,10 @@ def main(cfg:dict):
                 zero_initial_h_c=True,last_activation=cfg["last_activation"]
             ).to(device_torch)
         else:
-            raise NotImplementedError
+            raise NotImplementedError("Model not implemented")
 
         numParams = sum([i.numel() for i in net.parameters()])
-        print(f"Model has {(numParams/1e6):.4f} million parameters")
+        print(f"Model has {(numParams/1e3):.2f}k parameters")
 
         crit = nn.BCELoss()
         learning_rate = cfg["lr_LSTM"] if cfg["model_to_use"] == "LSTM" else cfg["lr"]
@@ -271,7 +234,7 @@ def main(cfg:dict):
                 if num % (len(train_loader)/2) == 0 and num > 1:
                     net.eval()
                     with t.inference_mode():
-                        for idx_val, (x_val, y_val) in enumerate(val_loader):
+                        for x_val, y_val in val_loader:
                             out = net(x_val.to(device_torch))
                             loss_val = crit(out.view(-1),y_val.to(device_torch).view(-1))
                             bool_correct_val = t.round(out.view(-1)) == y_val.to(device_torch).view(-1)
@@ -281,7 +244,7 @@ def main(cfg:dict):
                             
                             valSteps+=1
                             epochLoss_val.append(loss_val.detach())
-                    pbarText = f"Epoch {e} loss {t.mean(t.stack(epochLoss)):.3f}  EvalLoss {t.mean(t.stack(epochLoss_val)):.3f} Acc_val {t.mean(t.stack(accuracies_val)):.3f}% TrainSteps {trainSteps} ValSteps {valSteps}"
+                    pbarText = f"Epoch {e} Trainloss {t.mean(t.stack(epochLoss)):.3f}  EvalLoss {t.mean(t.stack(epochLoss_val)):.3f} Acc_val {t.mean(t.stack(accuracies_val)):.3f}% TrainSteps {trainSteps} ValSteps {valSteps}"
                     net.train()
             losses_epochs.append(t.mean(t.stack(epochLoss)).detach())
             losses_val_epochs.append(t.mean(t.stack(epochLoss_val)))
@@ -297,18 +260,37 @@ def main(cfg:dict):
         accuracies_val_epochs_numpy = [x.cpu().numpy().item() for x in accuracies_val_epochs]
         accuracies_train_epochs_numpy = [x.cpu().numpy().item() for x in accuracies_train_epochs]
 
-        plt.plot(losses_epochs_numpy,".-",label="train_loss")
-        plt.plot(losses_epochs_val_numpy,".-",label="val_loss")
-        # plt.yscale("log")
-        plt.legend()
-        plt.savefig(plot_path.joinpath(f"{cfg['model_to_use']}_losses_{idx_loop}.png"),dpi=200)
-        plt.close("all")
+        if cfg["plot_learning_curves"]:
+            plt.plot(losses_epochs_numpy,".-",label="train_loss")
+            plt.plot(losses_epochs_val_numpy,".-",label="val_loss")
+            if cfg["loop_plot_xscale"] == "log":
+                plt.xscale("log")
+            plt.legend()
+            plt.title(f'{cfg["loop_var_name"]} = {loop_val}')
+            plt.savefig(plot_path.joinpath(f"{cfg['model_to_use']}_losses_{idx_loop}.png"),dpi=200)
+            plt.close("all")
 
-        plt.plot(accuracies_val_epochs_numpy,label="accuracies_val")
-        plt.plot(accuracies_train_epochs_numpy,label="accuracies_train")
-        plt.legend()
-        plt.savefig(plot_path.joinpath(f"{cfg['model_to_use']}_accuracies_epochs_numpy_{idx_loop}.png"),dpi=200)
-        plt.close("all")
+        if cfg["save_learning_curves"]:
+            pd.DataFrame({
+                "epoch":np.arange(len(losses_epochs_numpy)),
+                "Training Loss":losses_epochs_numpy,
+                "Validation Loss":losses_epochs_val_numpy,
+            },index=np.arange(len(losses_epochs_numpy))).to_csv(txt_save_path.joinpath(f"{cfg['model_to_use']}_Learning_Curve.txt"),index=False)
+
+        if cfg["plot_learning_curves"]:
+            plt.plot(accuracies_train_epochs_numpy,label="accuracies_train")
+            plt.plot(accuracies_val_epochs_numpy,label="accuracies_val")
+            plt.legend()
+            plt.title(f'{cfg["loop_var_name"]} = {loop_val}')
+            plt.savefig(plot_path.joinpath(f"{cfg['model_to_use']}_accuracies_epochs_numpy_{idx_loop}.png"),dpi=200)
+            plt.close("all")
+
+        if cfg["save_learning_curves"]:
+            pd.DataFrame({
+                "epoch":np.arange(len(accuracies_train_epochs_numpy)),
+                "Training Accuracy":accuracies_train_epochs_numpy,
+                "Validation Accuracy":accuracies_val_epochs_numpy,
+            },index=np.arange(len(accuracies_train_epochs_numpy))).to_csv(txt_save_path.joinpath(f"{cfg['model_to_use']}_Learning_Curve_acc.txt"),index=False)
 
         loop_losses_train.append(losses_epochs_numpy)
         loop_losses_val.append(losses_epochs_val_numpy)
@@ -319,17 +301,17 @@ def main(cfg:dict):
         plt.plot(cfg["loop_vals"][:len(y_plot_train)],y_plot_val,".-",label="val")
         plt.xlabel(cfg["loop_var_name"])
         plt.ylabel("Final Losse Value")
-        # plt.xscale("log")
+        if cfg["loop_plot_xscale"] == "log":
+            plt.xscale("log")
         plt.legend()
         plt.savefig(plot_path.joinpath(f"{cfg['model_to_use']}_loop_finallosses_val_{cfg['loop_var_name']}.png"),dpi=200)
         plt.close()
-
 
         target_vals = []
         predictions = []
         net.eval()
         with t.inference_mode():
-            for idx_val, (x_val, y_val) in enumerate(val_loader):
+            for x_val, y_val in val_loader:
                 out = net(x_val.to(device_torch)).detach().cpu().numpy()
                 prediction = np.round(out)
                 predictions.append(prediction.ravel())
@@ -337,6 +319,8 @@ def main(cfg:dict):
         predictions_numpy = np.concatenate(predictions,axis=0)
         target_vals_numpy = np.concatenate(target_vals,axis=0)
         conf_matrix = confusion_matrix(predictions_numpy, target_vals_numpy)
+        print("Confusion martix:")
+        print(conf_matrix)
 
         accuracy_score_final = ml_utils.evaluate_predictions(predictions_numpy, target_vals_numpy)
 
@@ -353,7 +337,8 @@ def main(cfg:dict):
         plt.plot(cfg["loop_vals"][:len(accuracies_full_valset)],accuracies_full_valset,".-",label="val")
         plt.xlabel(cfg["loop_var_name"])
         plt.ylabel("Final Accuracy (%)")
-        # plt.xscale("log")
+        if cfg["loop_plot_xscale"] == "log":
+            plt.xscale("log")
         plt.legend()
         plt.savefig(plot_path.joinpath(f"{cfg['model_to_use']}_loop_final_accuracies_{cfg['loop_var_name']}.png"),dpi=200)
         plt.close()
