@@ -15,7 +15,7 @@ or
 ```
 
 Expects data in the following folder structure:
-
+```
 eyetracker_data
  ┣ data
  ┃ ┣ .ipynb_checkpoints
@@ -28,3 +28,4 @@ eyetracker_data
  ┃ ┗ N999.txt
  ┣ Outcome.txt
  ┗ sub_num.txt
+```
