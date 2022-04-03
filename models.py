@@ -59,7 +59,7 @@ class BERT_Model(nn.Module):
 
 class LSTM_Model(nn.Module):
 
-    def __init__(self,x, y, hidden_dim, num_layers, zero_initial_h_c=False) -> None:
+    def __init__(self,x:t.Tensor, y:t.Tensor, hidden_dim:int, num_layers:int, zero_initial_h_c:bool,last_activation:str) -> None:
         super().__init__()
         self.x_shape =x.shape
         self.out_shape =  y.shape[-1] if y.ndim>1 else 1
@@ -71,7 +71,7 @@ class LSTM_Model(nn.Module):
         self.num_features = self.x_shape[-1]
         self.lstm = nn.LSTM(self.num_features,hidden_dim,num_layers,batch_first=True)
         self.linear = nn.Linear(hidden_dim,self.out_shape)
-        self.final_activation = nn.Sigmoid()
+        self.final_activation =getattr(nn,last_activation)()
 
         self.h0_initial, self.c0_initial = self.make_initial_h0_c0(self.x_shape)
 
