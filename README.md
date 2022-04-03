@@ -7,7 +7,7 @@ Installation
 ```
   conda create -n eye python==3.8.5
   conda activate eye
-  pip install -R requirements.txt
+  pip install -r requirements.txt
 ```
 or
 ```
