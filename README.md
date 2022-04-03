@@ -1,5 +1,5 @@
 # eyetracking_classification
-Uses machine learning to classify eye-tracking data
+Uses machine learning to classify eye-tracking data.
 
 Installation
 ------------
@@ -14,6 +14,9 @@ or
   conda env create -f environment.yml
 ```
 
+
+Dataset
+------------
 Expects data in the following folder structure:
 ```
 eyetracker_data
@@ -27,6 +30,9 @@ eyetracker_data
  ┗ sub_num.txt
 ```
 
+
+Running it
+------------
 To run:
 Modify config.py accordingly then:
 ```
