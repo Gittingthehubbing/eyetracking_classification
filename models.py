@@ -59,7 +59,25 @@ class BERT_Model(nn.Module):
 
 class LSTM_Model(nn.Module):
 
-    def __init__(self,x:t.Tensor, y:t.Tensor, hidden_dim:int, num_layers:int, zero_initial_h_c:bool,last_activation:str) -> None:
+    def __init__(
+        self,x:t.Tensor, y:t.Tensor, 
+        hidden_dim:int, num_layers:int, 
+        zero_initial_h_c:bool,last_activation:str
+    ) -> None:
+        
+        """
+        Sets up LSTM model based on PyTorch implementation.
+        Adds a classification head based on last hidden state.
+
+        Args:
+            x (torch.Tensor): Tensor of input data.
+            y (torch.Tensor): Tensor of target data.
+            hidden_dim (int): Hidden dimension for the LSTM model.
+            num_layers (int): Number of layers used of LSTM model.
+            zero_initial_h_c (bool): True initialises h and c to zero, False to random.
+            last_activation (str): 'Softmax' or 'Sigmoid' activation for classification head.        
+        """
+
         super().__init__()
         self.x_shape =x.shape
         self.out_shape =  y.shape[-1] if y.ndim>1 else 1
@@ -75,7 +93,15 @@ class LSTM_Model(nn.Module):
 
         self.h0_initial, self.c0_initial = self.make_initial_h0_c0(self.x_shape)
 
-    def forward(self, x):
+    def forward(self, x:t.Tensor):
+        """Forward method for model.
+        
+        Args:
+            x (torch.Tensor): Tensor of input data.
+
+        Returns:
+            Classification result (torch.Tensor)
+        """
         if x.shape[0] != self.x_shape[0]:
             h0_initial, c0_initial = self.make_initial_h0_c0(x.shape)
         else:
